@@ -1,14 +1,14 @@
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cpal::{SampleFormat, Sample};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
-use dasp::signal;
+use dasp::signal::{self, Square};
 use dasp::signal::{Signal,Sine,ConstHz};
 
 static mut CARRIER: Mutex<Option<Box<Sine<ConstHz>>>> = Mutex::new(None);
-static mut MODIFIER: Mutex<Option<Box<Sine<ConstHz>>>> = Mutex::new(None);
+static mut MODIFIER: Mutex<Option<Box<Square<ConstHz>>>> = Mutex::new(None);
 
 fn set_carrier_hz(hz: f64) {
     {
@@ -20,14 +20,14 @@ fn set_carrier_hz(hz: f64) {
 fn set_modifier_hz(hz: f64) {
     {
         let mut m_lock = unsafe { MODIFIER.lock().unwrap() };
-        *m_lock = Some(Box::new(signal::rate(44_100.0).const_hz(hz).sine()));
+        *m_lock = Some(Box::new(signal::rate(44_100.0).const_hz(hz).square()));
     }
 }
 
 fn main() {
 
-    set_carrier_hz(440.0);
-    set_modifier_hz(220.0);
+    set_carrier_hz(100.0);
+    set_modifier_hz(1.0);
 
     let host = cpal::default_host();
     let device = host.default_output_device().expect("Couldn't open output device");
@@ -51,7 +51,7 @@ fn main() {
 
             if let (Some(carrier), Some(modifier)) = (c_lock.as_deref_mut(), m_lock.as_deref_mut()) {
                 for sample in data.iter_mut() {
-                    let frame = (carrier.next() * modifier.next()) as f32;
+                    let frame = (carrier.next() + modifier.next()) as f32;
                     *sample = frame.to_i16();
                 }
             }
@@ -63,7 +63,23 @@ fn main() {
     let stream = device.build_output_stream(&config, data_callback, err_fn).unwrap();
     stream.play().unwrap();
 
+    let mut now = Instant::now();
+    let mut high = false;
+
     loop {
         std::thread::sleep(Duration::from_millis(100));
+
+        let elapsed = Instant::now() - now;
+        if elapsed.as_millis() >= 1000 {
+            now = Instant::now();
+            high = !high;
+
+            if high {
+                set_carrier_hz(220.0);
+            } else {
+                set_carrier_hz(110.0);
+            }
+        }
+      
     }
 }
