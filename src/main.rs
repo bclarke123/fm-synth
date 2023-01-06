@@ -4,10 +4,10 @@ use std::time::Duration;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Sample, SampleFormat, Stream, StreamConfig};
 
-use dasp::signal::{self, ConstHz, Signal, Sine};
+use dasp::signal::{self, Signal};
 
-static mut CARRIER: Mutex<Option<Box<Sine<ConstHz>>>> = Mutex::new(None);
-static mut MODULATOR: Mutex<Option<Box<Sine<ConstHz>>>> = Mutex::new(None);
+static mut CARRIER: Mutex<Option<Box<dyn Signal<Frame = f64>>>> = Mutex::new(None);
+static mut MODULATOR: Mutex<Option<Box<dyn Signal<Frame = f64>>>> = Mutex::new(None);
 
 use fm_synth::octave;
 
